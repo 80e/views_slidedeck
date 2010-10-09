@@ -1,0 +1,64 @@
+<?php
+
+/**
+ * @file
+ * Provides SlideDeck style options for Views.
+ */
+
+/**
+ * Implement hook_theme().
+ */
+function slidedeck_theme($existing, $type, $theme, $path) {
+  return array(
+    'slidedeck_element' => array(
+      'arguments' => array('view' => NULL, 'rows' => NULL, 'title' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function slidedeck_views_api() {
+  return array(
+    'api' => 2.0,
+  );
+}
+
+
+/**
+ * SlideDeck: preprocess function for the slidedeck.
+ */
+function template_preprocess_slidedeck(&$vars) {
+  //drupal_set_message('<pre>'. print_r(array_keys($vars), 1) .'</pre>');
+  $options = $vars['options'];
+  $vars['slidedeck'] = theme('slidedeck_element', $vars['view'], $options, $vars['rows'], $vars['title']);
+}
+
+/**
+ * The current element of the slideshow.
+ *
+ * @ingroup themeable
+ */
+function theme_slidedeck_element($view, $rows, $title) {
+  $attributes['id'] = 'slidedeck-container';
+  $attributes['class'] = 'skin-slidedeck';
+  $attributes = drupal_attributes($attributes);
+  
+  drupal_add_css(drupal_get_path('module', 'slidedeck') .'/css/slidedeck.skin.css', 'module');
+  if (is_numeric(strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'internet explorer'))) {
+    drupal_add_css(drupal_get_path('module', 'slidedeck') .'/css/slidedeck.skin.ie.css', 'module');
+  }
+  drupal_add_js(drupal_get_path('module', 'slidedeck') .'/js/slidedeck.jquery.lite.js', 'module');
+  drupal_add_js(drupal_get_path('module', 'slidedeck') .'/js/general.js', 'module');
+  
+  //drupal_set_message('<pre>'. print_r($view->result, 1) .'</pre>');
+  $rendered = '<dl class="slidedeck">';
+  foreach ($view->result as $row) {
+    $rendered .= '<dt>'. $row->node_title .'</dt>';
+    $rendered .= '<dd>'. $row->node_revisions_body .'</dd>';
+  }
+  $rendered .= '</dl>';
+
+  return '<div'. $attributes .'>'. $rendered .'</div>';
+}
