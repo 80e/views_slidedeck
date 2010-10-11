@@ -11,7 +11,7 @@
 function slidedeck_theme($existing, $type, $theme, $path) {
   return array(
     'slidedeck_element' => array(
-      'arguments' => array('view' => NULL, 'rows' => NULL, 'title' => NULL),
+      'arguments' => array('view' => NULL, 'options' => NULL, 'rows' => NULL, 'title' => NULL),
     ),
   );
 }
@@ -30,27 +30,33 @@ function slidedeck_views_api() {
  * SlideDeck: preprocess function for the slidedeck.
  */
 function template_preprocess_slidedeck(&$vars) {
-  //drupal_set_message('<pre>'. print_r(array_keys($vars), 1) .'</pre>');
-  $options = $vars['options'];
-  $vars['slidedeck'] = theme('slidedeck_element', $vars['view'], $options, $vars['rows'], $vars['title']);
+  $vars['slidedeck'] = theme('slidedeck_element', $vars['view'], $vars['options'], $vars['rows'], $vars['title']);
 }
 
 /**
- * The current element of the slideshow.
- *
- * @ingroup themeable
+ * The SlideDeck markup.
  */
-function theme_slidedeck_element($view, $rows, $title) {
-  $attributes['id'] = 'slidedeck-container';
-  $attributes['class'] = 'skin-slidedeck';
+function theme_slidedeck_element($view, $options, $rows, $title) {
+  //drupal_set_message('<pre>'. print_r($options, 1) .'</pre>');
+  if (!$options['slidedeck_skin']) {
+    $options['slidedeck_skin'] = 'slidedeck';
+  }
+  $skin = $options['slidedeck_skin'];
+  $skin_stripped = slidedeck_skin_dir_strip($skin);
+  static $slideshow_count = 0;
+  $slideshow_count++;
+  $attributes['id'] = 'slidedeck-container-'. $slideshow_count;
+  $attributes['class'] = 'skin-'. $skin_stripped;
   $attributes = drupal_attributes($attributes);
   
-  drupal_add_css(drupal_get_path('module', 'slidedeck') .'/css/slidedeck.skin.css', 'module');
+  drupal_add_css(drupal_get_path('module', 'slidedeck') .'/skins/'. $skin .'/skin.css', 'module');
   if (is_numeric(strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'internet explorer'))) {
-    drupal_add_css(drupal_get_path('module', 'slidedeck') .'/css/slidedeck.skin.ie.css', 'module');
+    drupal_add_css(drupal_get_path('module', 'slidedeck') .'/skins/'. $skin .'/skin.ie.css', 'module');
   }
-  drupal_add_js(drupal_get_path('module', 'slidedeck') .'/js/slidedeck.jquery.lite.js', 'module');
-  drupal_add_js(drupal_get_path('module', 'slidedeck') .'/js/general.js', 'module');
+  drupal_add_js(drupal_get_path('module', 'slidedeck') .'/contrib/slidedeck.jquery.lite.js', 'module');
+  drupal_add_js("Drupal.behaviors.slidedeck = function() {
+    $('.slidedeck').slidedeck();
+  };", 'inline');
   
   //drupal_set_message('<pre>'. print_r($view->result, 1) .'</pre>');
   $rendered = '<dl class="slidedeck">';
@@ -61,4 +67,29 @@ function theme_slidedeck_element($view, $rows, $title) {
   $rendered .= '</dl>';
 
   return '<div'. $attributes .'>'. $rendered .'</div>';
+}
+
+/**
+ *
+ */
+function slidedeck_get_available_skins() {
+  $skins = array();
+  $files = file_scan_directory(drupal_get_path('module', 'slidedeck') .'/skins', '.*', array('.', '..', 'CVS'), 0, FALSE);
+  foreach ($files as $file) {
+    $stripped_name = slidedeck_skin_dir_strip($file->basename);
+    if ($stripped_name == 'slidedeck') {
+      $stripped_name .= ' (default)';
+    }
+    $skins[$file->basename] = drupal_ucfirst($stripped_name);
+  }
+  //drupal_set_message('<pre>'. print_r($files, 1) .'</pre>');
+  return $skins;
+}
+
+function slidedeck_skin_dir_strip($skin) {
+  $strip = 'slidedeck-skin-';
+  if (strpos($skin, $strip) === 0) {
+    $skin = substr($skin, strlen($strip));
+  }
+  return $skin;
 }
