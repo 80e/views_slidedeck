@@ -1,0 +1,5 @@
+name = SlideDeck for Views
+description = Provides a View style that displays formatted rows inside a jQuery SlideDeck.
+dependencies[] = views
+package = Views
+core = 6.x

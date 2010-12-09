@@ -1,5 +1,0 @@
-name = SlideDeck views integration
-description = Provides a View style that displays rows as a jQuery SlideDeck.
-dependencies[] = views
-package = Views
-core = 6.x

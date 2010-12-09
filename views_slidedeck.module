@@ -1,0 +1,293 @@
+<?php
+
+/**
+ * Implements hook_views_api().
+ */
+function views_slidedeck_views_api() {
+  return array(
+    'api' => 2.0,
+  );
+}
+
+/**
+ * Preprocess function for a SlideDeck.
+ */
+function template_preprocess_views_slidedeck(&$vars) {
+  $view = $vars['view'];
+  $options = $vars['options'];
+  $rows = $vars['rows'];
+  
+  if (!$options['slidedeck_skin']) {
+    $options['slidedeck_skin'] = 'slidedeck';
+  }
+  $skin_id = $options['slidedeck_skin'];
+  $skin = views_slidedeck_load_skin($skin_id);
+  
+  static $slideshow_count = 0;
+  $slideshow_count++;
+  $attributes['id'] = 'slidedeck-container-'. $slideshow_count;
+  $attributes['class'] = 'skin-'. views_slidedeck_skin_format_class($skin_id);
+  $vars['attributes'] = drupal_attributes($attributes);
+  
+  drupal_add_css(drupal_get_path('module', 'views_slidedeck') . $skin['url'], 'module');
+  if (is_numeric(strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE')) && $skin['ie_url']) {
+    drupal_add_css(drupal_get_path('module', 'views_slidedeck') . $skin['ie_url'], 'module');
+  }
+  if (is_numeric(strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 8')) && $skin['ie8_url']) {
+    drupal_add_css(drupal_get_path('module', 'views_slidedeck') . $skin['ie8_url'], 'module');
+  }
+  if (is_numeric(strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 7')) && $skin['ie7_url']) {
+    drupal_add_css(drupal_get_path('module', 'views_slidedeck') . $skin['ie7_url'], 'module');
+  }
+  if (is_numeric(strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 6')) && $skin['ie6_url']) {
+    drupal_add_css(drupal_get_path('module', 'views_slidedeck') . $skin['ie6_url'], 'module');
+  }
+  drupal_add_js(drupal_get_path('module', 'views_slidedeck') .'/contrib/slidedeck.jquery.lite.js', 'module');
+  if ($skin['script_url']) {
+    drupal_add_js(drupal_get_path('module', 'views_slidedeck') . $skin['script_url'], 'module');
+  }
+  drupal_add_js("Drupal.behaviors.slidedeck = function() {
+    $('.slidedeck').slidedeck();
+  };", 'inline');
+
+  $title_field = $options['slidedeck_title_field'];
+  if (empty($title_field)) {
+    $title_field = 'title';
+  }
+
+  $vars['rendered_rows'] = array();
+  $rendered_rows = $view->style_plugin->rendered_fields;
+
+  foreach ($rendered_rows as $index => $row) {
+    $row_title = '';
+    if (!$view->field[$title_field]->options['exclude'] && $title_field != 'none') {
+      $row_title = $row[$title_field];
+    }
+    $vars['rendered_rows'][$index]->title = $row_title;
+    $vars['rendered_rows'][$index]->content = views_slidedeck_build_panel_content($view, $row, $title_field);
+  }
+
+}
+
+/**
+ * Helper function that builds a SlideDeck panel's content.
+ */
+function views_slidedeck_build_panel_content($view, $row, $title_field) {
+  $content = '';
+  $fields = views_slidedeck_get_defined_fields($view);
+  foreach ($fields as $field) {
+    if ($field != $title_field && !$view->field[$field]->options['exclude']) {
+      $content .= $row[$field];
+    }
+  }
+  return $content;
+}
+
+/**
+ * Helper function that gets defined fields from a view.
+ */
+function views_slidedeck_get_defined_fields($view) {
+  $field_names = drupal_map_assoc(array_keys($view->field));
+  return $field_names;
+}
+
+/**
+ * Helper function that formats a skin class based off the skin's dir name.
+ */
+function views_slidedeck_skin_format_class($skin_id) {
+  $strip = 'slidedeck-skin-';
+  if (strpos($skin_id, $strip) === 0) {
+    $skin_id = substr($skin_id, strlen($strip));
+  }
+  return $skin_id;
+}
+
+/**
+ * Retrieve and store all available SlideDeck skins.
+ */
+function views_slidedeck_get_available_skins() {
+  $skins = array();
+  $files = file_scan_directory(drupal_get_path('module', 'views_slidedeck') .'/skins', 'skin.css', array('.', '..', 'CVS'), 0, TRUE);
+  foreach ($files as $file) {
+    $skin = views_slidedeck_skin_meta($file->filename);
+    $skins[$skin['slug']] = $skin;
+  }
+  variable_set('views_slidedeck_skins', $skins);
+  return $skins;
+}
+
+/**
+ * Load stored SlideDeck skins.
+ */
+function views_slidedeck_load_skin($skin_id) {
+  $skins = variable_get('views_slidedeck_skins', array());
+  return $skins[$skin_id];
+}
+
+/**
+ * Process skin meta data from a skin file.
+ * 
+ * (borrowed from Wordpress plugin)
+ */
+function views_slidedeck_skin_meta($skin_file) {
+  $skin_data = file_get_contents($skin_file);
+  $skin_folder = dirname($skin_file);
+  $skin_slug = end(explode('/', $skin_folder));
+  
+  $meta_raw = substr($skin_data, strpos( $skin_data, '/*') + 2);
+  $meta_raw = trim(substr($meta_raw, 0, strpos($meta_raw, '*/')));
+  
+  if (!empty($meta_raw)) {
+    $skin_meta = array();
+    
+    foreach (explode("\n", $meta_raw) as $row) {
+      $key_val = explode(':', $row);
+      $skin_meta[trim($key_val[0])] = trim($key_val[1]);
+    }
+    
+    $skin = array(
+      'url' => substr($skin_file, strpos($skin_file, '/skins')),
+      'thumbnail' => substr($skin_folder, strpos($skin_folder, '/skins')) . '/thumbnail.png',
+      'slug' => $skin_slug,
+      'meta' => $skin_meta
+    );
+    if (file_exists($skin_folder . '/skin.ie.css')) {
+      $skin['ie_url'] = substr($skin_folder, strpos($skin_folder, '/skins')) . '/skin.ie.css';
+    }
+    if (file_exists($skin_folder . '/skin.ie7.css')) {
+      $skin['ie7_url'] = substr($skin_folder, strpos($skin_folder, '/skins')) . '/skin.ie7.css';
+    }
+    if (file_exists($skin_folder . '/skin.ie8.css')) {
+      $skin['ie8_url'] = substr($skin_folder, strpos($skin_folder, '/skins')) . '/skin.ie8.css';
+    }
+    if (file_exists($skin_folder . '/skin.js')) {
+      $skin['script_url'] = substr($skin_folder, strpos($skin_folder, '/skins')) . '/skin.js';
+    }
+    if (file_exists($skin_folder . '/templates')) {
+      $skin['templates'] = array();
+      
+      foreach (glob($skin_folder . '/templates/*.thtml' ) as $template) {
+        $template_data = file_get_contents($template);
+        $template_raw = substr($template_data, strpos($template_data, '/*') + 4);
+        $template_raw = trim(substr($template_raw, 0, strpos($template_raw, '*/')));
+        
+        $template_meta = array();
+        $template_meta['slug'] = str_replace('.thtml', '', basename($template));
+        $template_meta['file'] = $template;
+        foreach (explode("\n", $template_raw) as $row) {
+          $key_val = explode(':', $row);
+          $template_meta[trim($key_val[0])] = trim($key_val[1]);
+        }
+        
+        $skin['templates'][$template_meta['slug']] = $template_meta;
+      }
+    }
+  }
+  
+  return $skin;
+}
+
+/**
+ * Implements hook_views_default_views().
+ *
+ * A very basic view to get people started.
+ */
+function views_slidedeck_views_default_views() {
+  $view = new view;
+  $view->name = 'slidedeck';
+  $view->description = '';
+  $view->tag = '';
+  $view->view_php = '';
+  $view->base_table = 'node';
+  $view->is_cacheable = FALSE;
+  $view->api_version = 2;
+  $view->disabled = FALSE; /* Edit this to true to make a default view disabled initially */
+  $handler = $view->new_display('default', 'Defaults', 'default');
+  $handler->override_option('fields', array(
+    'title' => array(
+      'label' => '',
+      'alter' => array(
+        'alter_text' => 0,
+        'text' => '',
+        'make_link' => 0,
+        'path' => '',
+        'link_class' => '',
+        'alt' => '',
+        'prefix' => '',
+        'suffix' => '',
+        'target' => '',
+        'help' => '',
+        'trim' => 0,
+        'max_length' => '',
+        'word_boundary' => 1,
+        'ellipsis' => 1,
+        'html' => 0,
+        'strip_tags' => 0,
+      ),
+      'empty' => '',
+      'hide_empty' => 0,
+      'empty_zero' => 0,
+      'link_to_node' => 0,
+      'exclude' => 0,
+      'id' => 'title',
+      'table' => 'node',
+      'field' => 'title',
+      'override' => array(
+        'button' => 'Override',
+      ),
+      'relationship' => 'none',
+    ),
+    'body' => array(
+      'label' => '',
+      'alter' => array(
+        'alter_text' => 0,
+        'text' => '',
+        'make_link' => 0,
+        'path' => '',
+        'link_class' => '',
+        'alt' => '',
+        'prefix' => '',
+        'suffix' => '',
+        'target' => '',
+        'help' => '',
+        'trim' => 0,
+        'max_length' => '',
+        'word_boundary' => 1,
+        'ellipsis' => 1,
+        'html' => 0,
+        'strip_tags' => 0,
+      ),
+      'empty' => '',
+      'hide_empty' => 0,
+      'empty_zero' => 0,
+      'exclude' => 0,
+      'id' => 'body',
+      'table' => 'node_revisions',
+      'field' => 'body',
+      'override' => array(
+        'button' => 'Override',
+      ),
+      'relationship' => 'none',
+    ),
+  ));
+  $handler->override_option('access', array(
+    'type' => 'none',
+  ));
+  $handler->override_option('cache', array(
+    'type' => 'none',
+  ));
+  $handler->override_option('items_per_page', 6);
+  $handler->override_option('use_pager', '0');
+  $handler->override_option('style_plugin', 'views_slidedeck');
+  $handler->override_option('style_options', array(
+    'slidedeck_skin' => 'slidedeck',
+    'slidedeck_title_field' => 'title',
+  ));
+  $handler = $view->new_display('block', 'Block', 'block_1');
+  $handler->override_option('block_description', '');
+  $handler->override_option('block_caching', -1);
+  
+  $views = array();
+  $views[$view->name] = $view;
+  return $views;
+}
