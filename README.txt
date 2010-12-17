@@ -31,3 +31,5 @@ Configuration
 2. There are a couple Style settings: skin chooser & title field selection. Skin chooser is self explanatory. Title field selection lets you choose which views field to use as the SlideDeck's vertical spline content.
 
 3. To add a new skin, drop the skin folder inside of the module "skins" directory. You will now be able to select it in the SlideDeck Style settings. The skin folder needs to follow a specific naming convention - skin name only or prefixed with "slidedeck-skin-". IE: If your skin container selector in skin.css is ".skin-invasion", then your skin folder needs to be named either "invasion" or "slidedeck-skin-invasion".
+
+4. If you've purchased the Pro version, add slidedeck.jquery.js to the "contrib" dir and it will automatically be used.
