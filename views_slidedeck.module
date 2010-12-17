@@ -42,7 +42,13 @@ function template_preprocess_views_slidedeck(&$vars) {
   if (is_numeric(strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 6')) && $skin['ie6_url']) {
     drupal_add_css(drupal_get_path('module', 'views_slidedeck') . $skin['ie6_url'], 'module');
   }
-  drupal_add_js(drupal_get_path('module', 'views_slidedeck') .'/contrib/slidedeck.jquery.lite.js', 'module');
+  $sd_js = drupal_get_path('module', 'views_slidedeck') .'/contrib/slidedeck.jquery.lite.js';
+  $pro_path = drupal_get_path('module', 'views_slidedeck') .'/contrib/slidedeck.jquery.js';
+  // Check for pro version.
+  if (file_exists($_SERVER{'DOCUMENT_ROOT'} . base_path() . $pro_path)) {
+    $sd_js = $pro_path;
+  }
+  drupal_add_js($sd_js, 'module');
   if ($skin['script_url']) {
     drupal_add_js(drupal_get_path('module', 'views_slidedeck') . $skin['script_url'], 'module');
   }
