@@ -45,7 +45,7 @@ function template_preprocess_views_slidedeck(&$vars) {
   $sd_js = drupal_get_path('module', 'views_slidedeck') .'/contrib/slidedeck.jquery.lite.js';
   $pro_path = drupal_get_path('module', 'views_slidedeck') .'/contrib/slidedeck.jquery.js';
   // Check for pro version.
-  if (file_exists($_SERVER{'DOCUMENT_ROOT'} . base_path() . $pro_path)) {
+  if (file_exists($pro_path)) {
     $sd_js = $pro_path;
   }
   drupal_add_js($sd_js, 'module');
