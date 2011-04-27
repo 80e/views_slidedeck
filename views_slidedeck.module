@@ -1,6 +1,36 @@
 <?php
 
 /**
+ * Implementation of hook_menu().
+ */
+function views_slidedeck_menu() {
+  $items = array();
+  $items['admin/settings/views-slidedeck'] = array(
+    'title' => 'Views Slidedeck',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('views_slidedeck_settings_form'),
+    'access arguments' => array('administer site configuration'),
+  );
+  
+  return $items;
+}
+
+/**
+ * Views Slidedeck settings form.
+ */
+function views_slidedeck_settings_form() {
+  $form = array();
+  $form['views_slidedeck_start_slide'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Which slide should be started on? (starting with number 1)'),
+    '#description' => '',
+    '#default_value' => variable_get('views_slidedeck_start_slide', '1'),
+  );
+  
+  return system_settings_form($form);
+}
+
+/**
  * Implements hook_views_api().
  */
 function views_slidedeck_views_api() {
@@ -52,9 +82,27 @@ function template_preprocess_views_slidedeck(&$vars) {
   if ($skin['script_url']) {
     drupal_add_js(drupal_get_path('module', 'views_slidedeck') . $skin['script_url'], 'module');
   }
-  drupal_add_js("Drupal.behaviors.slidedeck = function() {
-    $('.slidedeck').slidedeck();
-  };", 'inline');
+  
+  $settings = array(
+    'start_slide' => variable_get('views_slidedeck_start_slide', '1'),
+  );
+  drupal_add_js(array('slidedeck' => $settings), 'setting');
+  
+  drupal_add_js("
+  var ViewsSlidedeckDecks = [];
+  Drupal.behaviors.slidedeck = function(context) {
+    // Don't reinitialize if already initialized.
+    $('.slidedeck').each(function(i) {
+      // Default to admin setting or 1.
+      var start = Drupal.settings.slidedeck.start_slide || 1;
+      if (ViewsSlidedeckDecks[i]) {
+        // Already initialized - use current slide.
+        start = ViewsSlidedeckDecks[i].current;
+      }
+      ViewsSlidedeckDecks[i] = $(this).slidedeck({start:start});
+    });
+  };
+  ", 'inline');
 
   $title_field = $options['slidedeck_title_field'];
   if (empty($title_field)) {
